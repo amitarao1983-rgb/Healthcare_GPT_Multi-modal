@@ -3,7 +3,7 @@ Healthcare GPT Backend – Multi-turn chat, multimodal (images), configurable.
 API key is read from environment only; never exposed to the client.
 
 Serves the built React frontend from ../frontend/dist so one process =
-one HTTPS-capable app URL when deployed.
+one HTTPS app URL when deployed.
 """
 from pathlib import Path
 from typing import Optional
@@ -11,7 +11,6 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from config import get_settings
@@ -109,7 +108,11 @@ def build_openai_messages(
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "frontend_dist_exists": FRONTEND_DIST.exists(),
+        "index_exists": (FRONTEND_DIST / "index.html").is_file(),
+    }
 
 
 @app.get("/config")
@@ -158,19 +161,40 @@ def chat(req: ChatRequest):
     )
 
 
-# Static frontend AFTER API routes so /health, /config, /chat are not shadowed.
-if FRONTEND_DIST.exists():
-    assets_dir = FRONTEND_DIST / "assets"
-    if assets_dir.exists():
-        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+def _safe_file(path: Path) -> Optional[FileResponse]:
+    try:
+        resolved = path.resolve()
+        if not str(resolved).startswith(str(FRONTEND_DIST.resolve())):
+            return None
+        if resolved.is_file():
+            return FileResponse(resolved)
+    except Exception:
+        return None
+    return None
 
-    @app.get("/")
-    def serve_index():
-        return FileResponse(FRONTEND_DIST / "index.html")
 
-    @app.get("/{full_path:path}")
-    def spa_fallback(full_path: str):
-        candidate = FRONTEND_DIST / full_path
-        if candidate.is_file():
-            return FileResponse(candidate)
-        return FileResponse(FRONTEND_DIST / "index.html")
+@app.get("/")
+def serve_index():
+    index = FRONTEND_DIST / "index.html"
+    if not index.is_file():
+        raise HTTPException(
+            status_code=503,
+            detail="Frontend not built. Run npm run build in frontend/, or check Docker image.",
+        )
+    return FileResponse(index)
+
+
+@app.get("/{full_path:path}")
+def serve_frontend(full_path: str):
+    """Serve static assets or SPA index. Registered last so API routes win."""
+    if not FRONTEND_DIST.exists():
+        raise HTTPException(status_code=404, detail="Frontend missing")
+    # Prefer exact file (e.g. assets/index-xxxxx.js)
+    file_resp = _safe_file(FRONTEND_DIST / full_path)
+    if file_resp is not None:
+        return file_resp
+    # SPA fallback for client routes
+    index = FRONTEND_DIST / "index.html"
+    if index.is_file():
+        return FileResponse(index)
+    raise HTTPException(status_code=404, detail="Not found")

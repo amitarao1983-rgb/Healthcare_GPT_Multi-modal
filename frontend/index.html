@@ -5,25 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Healthcare GPT – Multi-Modal</title>
     <style>
-      html, body { margin: 0; background: #1a2332; color: #e6edf3; min-height: 100vh; }
-      #root { min-height: 100vh; }
+      html, body {
+        margin: 0;
+        min-height: 100vh;
+        background: #0b1f33;
+        color: #f5f8fc;
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      }
+      #boot {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 2rem;
+        text-align: center;
+      }
+      #boot h1 { margin: 0; font-size: 1.75rem; }
+      #boot p { margin: 0; color: #b7c7db; }
+      #boot .err { color: #ffb4b4; max-width: 36rem; }
     </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   </head>
   <body>
     <div id="root">
-      <div id="loading" style="padding:2rem;text-align:center;color:#e6edf3;font-family:system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;background:#1a2332;">
-        <p style="font-size:1.2rem;margin:0;">Loading Healthcare GPT…</p>
-        <p style="margin:0;color:#8b9cb8;">Open from: <strong>http://127.0.0.1:8000</strong> (or your deployed HTTPS URL)</p>
+      <div id="boot">
+        <h1>Healthcare GPT</h1>
+        <p>Loading the app… please wait a few seconds.</p>
+        <p id="boot-status" class="err"></p>
       </div>
     </div>
-    <noscript>
-      <div style="padding:2rem;text-align:center;color:#e6edf3;background:#1a2332;min-height:100vh;font-family:system-ui;">
-        <p>JavaScript is required. Enable it and refresh, or run the app from a terminal: <code>cd frontend && npm run dev</code> then open http://localhost:5173</p>
-      </div>
-    </noscript>
+    <script>
+      // Show a clear message if the JS bundle fails to load (common cause of black screen)
+      window.addEventListener('error', function (e) {
+        var el = document.getElementById('boot-status');
+        if (el && e && e.target && e.target.tagName === 'SCRIPT') {
+          el.textContent = 'Failed to load app scripts. Wait 30–60s (Render free sleep), then hard-refresh (Ctrl+F5).';
+        }
+      }, true);
+      setTimeout(function () {
+        var el = document.getElementById('boot-status');
+        var boot = document.getElementById('boot');
+        if (el && boot && document.getElementById('boot')) {
+          el.textContent = 'Still loading… If this stays forever, hard-refresh (Ctrl+F5) or open /health in a new tab.';
+        }
+      }, 8000);
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -3,25 +3,44 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: '2rem', color: '#f5f8fc', background: '#0b1f33', minHeight: '100vh' }}>
+          <h2 style={{ color: '#ffb4b4' }}>App error</h2>
+          <pre style={{ whiteSpace: 'pre-wrap' }}>{String(this.state.error?.message || this.state.error)}</pre>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 const rootEl = document.getElementById('root')
-const loadingEl = document.getElementById('loading')
 if (!rootEl) {
-  document.body.innerHTML = '<div style="padding:2rem;background:#1a2332;color:#e6edf3;min-height:100vh;"><p>Error: root element not found.</p></div>'
+  document.body.innerHTML = '<p style="padding:2rem;color:#fff;background:#0b1f33;">Error: root element not found.</p>'
 } else {
   try {
-    if (loadingEl) loadingEl.remove()
-    const root = ReactDOM.createRoot(rootEl)
-    root.render(
+    ReactDOM.createRoot(rootEl).render(
       <React.StrictMode>
-        <App />
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
       </React.StrictMode>
     )
   } catch (err) {
     rootEl.innerHTML = `
-      <div style="padding:2rem;background:#1a2332;color:#e6edf3;font-family:system-ui,sans-serif;max-width:600px;min-height:100vh;">
-        <h2 style="color:#fca5a5;">Something went wrong</h2>
-        <pre style="background:#0f1419;padding:1rem;border-radius:8px;overflow:auto;font-size:0.85rem;color:#e6edf3;">${String(err.message || err)}</pre>
-        <p>Open the app from <strong>http://localhost:5173</strong> (run in terminal: <code>cd frontend && npm run dev</code>).</p>
+      <div style="padding:2rem;background:#0b1f33;color:#f5f8fc;font-family:system-ui;min-height:100vh;">
+        <h2 style="color:#ffb4b4;">Something went wrong</h2>
+        <pre>${String(err.message || err)}</pre>
       </div>
     `
   }
