@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Healthcare GPT – Multi-Modal</title>
+    <style>
+      html, body { margin: 0; background: #1a2332; color: #e6edf3; min-height: 100vh; }
+      #root { min-height: 100vh; }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root">
+      <div id="loading" style="padding:2rem;text-align:center;color:#e6edf3;font-family:system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;background:#1a2332;">
+        <p style="font-size:1.2rem;margin:0;">Loading Healthcare GPT…</p>
+        <p style="margin:0;color:#8b9cb8;">Open from: <strong>http://localhost:5173</strong> (do not open the HTML file directly)</p>
+      </div>
+    </div>
+    <noscript>
+      <div style="padding:2rem;text-align:center;color:#e6edf3;background:#1a2332;min-height:100vh;font-family:system-ui;">
+        <p>JavaScript is required. Enable it and refresh, or run the app from a terminal: <code>cd frontend && npm run dev</code> then open http://localhost:5173</p>
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
