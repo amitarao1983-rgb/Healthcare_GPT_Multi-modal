@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: healthcare-gpt
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: HEALTHCARE_API_KEY
+        sync: false
+      - key: DEFAULT_MODEL
+        value: gpt-4o
+      - key: DEFAULT_TEMPERATURE
+        value: "0.6"
+      - key: DEFAULT_MAX_TOKENS
+        value: "2048"

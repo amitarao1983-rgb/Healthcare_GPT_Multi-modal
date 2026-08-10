@@ -2,15 +2,15 @@
 Healthcare GPT Backend – Multi-turn chat, multimodal (images), configurable.
 API key is read from environment only; never exposed to the client.
 
-In "integrated" mode this backend also serves the built React frontend
-from ../frontend/dist so you only run this one server and open
-http://127.0.0.1:8000 in the browser.
+Serves the built React frontend from ../frontend/dist so one process =
+one HTTPS-capable app URL when deployed.
 """
 from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -26,36 +26,18 @@ HEALTHCARE_SYSTEM_PROMPT = """You are Healthcare GPT, a knowledgeable and carefu
 
 When discussing medical matters, you give informative, evidence-based answers and always recommend consulting qualified healthcare providers for diagnosis and treatment. You can analyze medical images (X-rays, scans, dermatology photos, reports) when provided and describe what you see in non-diagnostic, educational terms. Never state definitive diagnoses from images; suggest follow-up with a clinician."""
 
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+
 app = FastAPI(title="Healthcare GPT API", version="1.0.0")
 
-# CORS is only needed for dev when the React app runs on a different port.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-# --- Static frontend (integrated mode) ---
-
-frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
-if frontend_dist.exists():
-    # When the React app is built (npm run build) we serve it from here.
-    app.mount(
-        "/",
-        StaticFiles(directory=str(frontend_dist), html=True),
-        name="frontend",
-    )
-
-
-# --- Request/Response models ---
 
 class ChatMessage(BaseModel):
     role: str = Field(..., pattern="^(system|user|assistant)$")
@@ -71,7 +53,7 @@ class ModelConfig(BaseModel):
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
     config: Optional[ModelConfig] = None
-    image_base64_list: Optional[list[str]] = None  # optional images for this turn
+    image_base64_list: Optional[list[str]] = None
 
 
 class ChatResponse(BaseModel):
@@ -80,14 +62,12 @@ class ChatResponse(BaseModel):
     usage: Optional[dict] = None
 
 
-# --- Helpers ---
-
 def get_client() -> OpenAI:
     settings = get_settings()
     if not settings.healthcare_api_key:
         raise HTTPException(
             status_code=503,
-            detail="Healthcare API key is not configured. Set HEALTHCARE_API_KEY in .env",
+            detail="Healthcare API key is not configured. Set HEALTHCARE_API_KEY in .env or host secrets.",
         )
     return OpenAI(api_key=settings.healthcare_api_key)
 
@@ -126,8 +106,6 @@ def build_openai_messages(
 
     return out
 
-
-# --- Endpoints ---
 
 @app.get("/health")
 def health():
@@ -178,3 +156,21 @@ def chat(req: ChatRequest):
         role="assistant",
         usage=usage,
     )
+
+
+# Static frontend AFTER API routes so /health, /config, /chat are not shadowed.
+if FRONTEND_DIST.exists():
+    assets_dir = FRONTEND_DIST / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    @app.get("/")
+    def serve_index():
+        return FileResponse(FRONTEND_DIST / "index.html")
+
+    @app.get("/{full_path:path}")
+    def spa_fallback(full_path: str):
+        candidate = FRONTEND_DIST / full_path
+        if candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(FRONTEND_DIST / "index.html")

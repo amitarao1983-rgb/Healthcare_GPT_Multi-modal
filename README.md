@@ -5,6 +5,29 @@ Multi-turn chat assistant for healthcare: medicine, clinical research, healthcar
 - **API key is server-side only** – set `HEALTHCARE_API_KEY` in the backend `.env`; it is never sent to the browser.
 - Configurable **temperature**, **max tokens**, and **model** via the UI or environment.
 
+## Deploy for a public HTTPS link
+
+GitHub only stores code. To open the **live app** in a browser with `https://...`:
+
+1. Open this Deploy link (Render free hosting):  
+   https://dashboard.render.com/blueprint/new?repo=https://github.com/amitarao1983-rgb/Healthcare_GPT_Multi-modal
+2. Sign in with GitHub if asked.
+3. Set the secret **`HEALTHCARE_API_KEY`** to your OpenAI API key.
+4. Click **Apply** / **Create**.
+5. When the service is Live, use the Render URL, for example:  
+   `https://healthcare-gpt.onrender.com`
+
+Local (one server):
+
+```powershell
+cd "c:\Users\LENOVO\Desktop\Healthcare_GPT (Multi-modal)\frontend"
+npm run build
+cd ..\backend
+python -m uvicorn main:app --reload --port 8000
+```
+
+Then open **http://127.0.0.1:8000**
+
 ## Quick start
 
 ### 1. Backend (API key lives here only)
@@ -37,7 +60,7 @@ This creates the static files in `frontend/dist` that the backend can serve.
 
 ```powershell
 cd "c:\Users\LENOVO\Desktop\Healthcare_GPT (Multi-modal)\backend"
-uvicorn main:app --reload --port 8000
+python -m uvicorn main:app --reload --port 8000
 ```
 
 Then open **http://127.0.0.1:8000** (or http://localhost:8000).  
@@ -56,7 +79,7 @@ FastAPI serves both:
 
 ## Security
 
-- The **API key is only in the backend** (`.env`). Never put it in frontend code or in repo.
+- The **API key is only in the backend** (`.env` or host secrets). Never put it in frontend code or in repo.
 - Keep `.env` out of version control (see `.gitignore`).
 
 ## Tech
