@@ -33,10 +33,10 @@ function App() {
     getConfig()
       .then((c) => setConfig((prev) => ({ ...prev, ...c })))
       .catch(() => {})
-    setVoiceSupported(
-      typeof window !== 'undefined' &&
-      (window.SpeechRecognition || window.webkitSpeechRecognition)
-    )
+    // Must be a boolean — if we pass the SpeechRecognition constructor to
+    // setState, React treats it as an updater and calls it without `new`.
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition
+    setVoiceSupported(typeof SpeechRec === 'function')
   }, [])
 
   useEffect(() => {
@@ -88,17 +88,27 @@ function App() {
   const handleVoice = () => {
     if (!voiceSupported || listening) return
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    const rec = new Recognition()
-    rec.continuous = false
-    rec.interimResults = false
-    rec.lang = 'en-US'
-    rec.onstart = () => setListening(true)
-    rec.onend = () => setListening(false)
-    rec.onresult = (e) => {
-      const t = e.results[0][0].transcript
-      setInput((prev) => (prev ? `${prev} ${t}` : t))
+    if (typeof Recognition !== 'function') {
+      setError('Voice input is not supported in this browser.')
+      return
     }
-    rec.start()
+    try {
+      const rec = new Recognition()
+      rec.continuous = false
+      rec.interimResults = false
+      rec.lang = 'en-US'
+      rec.onstart = () => setListening(true)
+      rec.onend = () => setListening(false)
+      rec.onerror = () => setListening(false)
+      rec.onresult = (e) => {
+        const t = e.results[0][0].transcript
+        setInput((prev) => (prev ? `${prev} ${t}` : t))
+      }
+      rec.start()
+    } catch (e) {
+      setError(e.message || 'Voice input failed to start.')
+      setListening(false)
+    }
   }
 
   const onFileChange = (e) => {
