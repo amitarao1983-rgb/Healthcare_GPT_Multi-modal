@@ -7,6 +7,20 @@
  */
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
+function formatErrorDetail(detail, fallback) {
+  if (!detail) return fallback || 'Request failed';
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((d) => (typeof d === 'string' ? d : d.msg || d.detail || JSON.stringify(d)))
+      .join('; ');
+  }
+  if (typeof detail === 'object') {
+    return detail.msg || detail.message || JSON.stringify(detail);
+  }
+  return String(detail);
+}
+
 export async function getConfig() {
   const r = await fetch(`${API_BASE}/config`);
   if (!r.ok) throw new Error(await r.text());
@@ -26,7 +40,7 @@ export async function chat({ messages, config, imageBase64List }) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || res.statusText);
+    throw new Error(formatErrorDetail(err.detail, res.statusText || 'Request failed'));
   }
   return res.json();
 }

@@ -125,40 +125,50 @@ def get_config():
     }
 
 
+@app.get("/debug-key")
+def debug_key():
+    """Safe check: does not expose the key, only whether it is set."""
+    key = (get_settings().healthcare_api_key or "").strip()
+    return {"configured": bool(key), "length": len(key)}
+
+
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
-    settings = get_settings()
-    client = get_client()
-    config = req.config or ModelConfig(
-        temperature=settings.default_temperature,
-        max_tokens=settings.default_max_tokens,
-        model=settings.default_model,
-    )
-    openai_messages = build_openai_messages(req.messages, req.image_base64_list)
     try:
+        settings = get_settings()
+        client = get_client()
+        config = req.config or ModelConfig(
+            temperature=settings.default_temperature,
+            max_tokens=settings.default_max_tokens,
+            model=settings.default_model,
+        )
+        openai_messages = build_openai_messages(req.messages, req.image_base64_list)
         resp = client.chat.completions.create(
             model=config.model,
             messages=openai_messages,
             temperature=config.temperature,
             max_tokens=config.max_tokens,
         )
+        choice = resp.choices[0] if resp.choices else None
+        if not choice:
+            raise HTTPException(status_code=502, detail="Empty response from provider")
+        usage = None
+        if resp.usage:
+            usage = {
+                "prompt_tokens": resp.usage.prompt_tokens,
+                "completion_tokens": resp.usage.completion_tokens,
+                "total_tokens": resp.usage.total_tokens,
+            }
+        return ChatResponse(
+            message=choice.message.content or "",
+            role="assistant",
+            usage=usage,
+        )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
-    choice = resp.choices[0] if resp.choices else None
-    if not choice:
-        raise HTTPException(status_code=502, detail="Empty response from provider")
-    usage = None
-    if resp.usage:
-        usage = {
-            "prompt_tokens": resp.usage.prompt_tokens,
-            "completion_tokens": resp.usage.completion_tokens,
-            "total_tokens": resp.usage.total_tokens,
-        }
-    return ChatResponse(
-        message=choice.message.content or "",
-        role="assistant",
-        usage=usage,
-    )
+        raise HTTPException(status_code=502, detail=f"{type(e).__name__}: {e}") from e
+
 
 
 def _safe_file(path: Path) -> Optional[FileResponse]:
