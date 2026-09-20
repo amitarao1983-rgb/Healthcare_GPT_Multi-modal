@@ -23,9 +23,24 @@ HEALTHCARE_SYSTEM_PROMPT = """You are Healthcare GPT, a knowledgeable and carefu
 - Medicolegal and medical law: consent, liability, regulations (informational only)
 - Nursing: practice, procedures, patient care
 
-When discussing medical matters, you give informative, evidence-based answers and always recommend consulting qualified healthcare providers for diagnosis and treatment. You can analyze medical images (X-rays, scans, dermatology photos, reports) when provided and describe what you see in non-diagnostic, educational terms. Never state definitive diagnoses from images; suggest follow-up with a clinician."""
+When the user uploads medical images (X-rays, CT/MRI scans, ultrasound, dermatology photos, lab report photos, wound photos, etc.):
+1. Carefully examine what is visible in the image(s).
+2. Describe relevant findings in clear educational language.
+3. Suggest possible considerations and what a clinician might look for.
+4. Never claim a definitive diagnosis from images alone.
+5. Always recommend follow-up with a qualified healthcare professional.
+6. If the image is unclear, blurry, or incomplete, say so and ask for a clearer photo if needed.
+
+When discussing medical matters without images, give informative, evidence-based answers and recommend consulting qualified healthcare providers for diagnosis and treatment."""
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+ALLOWED_IMAGE_MIMES = {
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+}
 
 app = FastAPI(title="Healthcare GPT API", version="1.0.0")
 
@@ -49,10 +64,17 @@ class ModelConfig(BaseModel):
     model: str = Field(default="gpt-4o")
 
 
+class ImagePayload(BaseModel):
+    """Base64 image without data-URL prefix, plus MIME type."""
+    data: str
+    mime: str = "image/jpeg"
+
+
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
     config: Optional[ModelConfig] = None
-    image_base64_list: Optional[list[str]] = None
+    image_base64_list: Optional[list[str]] = None  # legacy: raw base64, assumed jpeg
+    images: Optional[list[ImagePayload]] = None
 
 
 class ChatResponse(BaseModel):
@@ -71,9 +93,31 @@ def get_client() -> OpenAI:
     return OpenAI(api_key=settings.healthcare_api_key)
 
 
+def _normalize_mime(mime: str) -> str:
+    m = (mime or "image/jpeg").strip().lower()
+    if m == "image/jpg":
+        m = "image/jpeg"
+    if m not in ALLOWED_IMAGE_MIMES:
+        m = "image/jpeg"
+    return m
+
+
+def _strip_data_url(raw: str) -> tuple[str, Optional[str]]:
+    """Return (base64_data, mime_or_None) from raw base64 or data URL."""
+    s = (raw or "").strip()
+    if s.startswith("data:") and "," in s:
+        header, data = s.split(",", 1)
+        mime = None
+        if ";" in header:
+            mime = header[5:].split(";")[0]
+        return data.strip(), mime
+    return s, None
+
+
 def build_openai_messages(
     messages: list[ChatMessage],
     image_base64_list: Optional[list[str]] = None,
+    images: Optional[list[ImagePayload]] = None,
 ) -> list[dict]:
     out = [{"role": "system", "content": HEALTHCARE_SYSTEM_PROMPT}]
     for m in messages:
@@ -84,7 +128,22 @@ def build_openai_messages(
         else:
             out.append({"role": m.role, "content": m.content})
 
-    if image_base64_list and out:
+    payloads: list[tuple[str, str]] = []
+    if images:
+        for img in images:
+            data, mime_from_url = _strip_data_url(img.data)
+            if not data:
+                continue
+            mime = _normalize_mime(mime_from_url or img.mime)
+            payloads.append((data, mime))
+    elif image_base64_list:
+        for raw in image_base64_list:
+            data, mime_from_url = _strip_data_url(raw)
+            if not data:
+                continue
+            payloads.append((data, _normalize_mime(mime_from_url or "image/jpeg")))
+
+    if payloads and out:
         last_user = None
         for i in range(len(out) - 1, -1, -1):
             if out[i]["role"] == "user":
@@ -96,10 +155,13 @@ def build_openai_messages(
                 content = [{"type": "text", "text": content}]
             elif not isinstance(content, list):
                 content = [{"type": "text", "text": str(content)}]
-            for b64 in image_base64_list:
+            for data, mime in payloads:
                 content.append({
                     "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+                    "image_url": {
+                        "url": f"data:{mime};base64,{data}",
+                        "detail": "high",
+                    },
                 })
             last_user["content"] = content
 
@@ -142,12 +204,21 @@ def chat(req: ChatRequest):
             max_tokens=settings.default_max_tokens,
             model=settings.default_model,
         )
-        openai_messages = build_openai_messages(req.messages, req.image_base64_list)
+        # Vision works best with a multimodal model
+        model = config.model or settings.default_model
+        if (req.images or req.image_base64_list) and model in ("gpt-3.5-turbo", "gpt-4", "gpt-4-turbo-preview"):
+            model = "gpt-4o"
+
+        openai_messages = build_openai_messages(
+            req.messages,
+            req.image_base64_list,
+            req.images,
+        )
         resp = client.chat.completions.create(
-            model=config.model,
+            model=model,
             messages=openai_messages,
             temperature=config.temperature,
-            max_tokens=config.max_tokens,
+            max_tokens=max(config.max_tokens, 1024) if (req.images or req.image_base64_list) else config.max_tokens,
         )
         choice = resp.choices[0] if resp.choices else None
         if not choice:
@@ -168,7 +239,6 @@ def chat(req: ChatRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"{type(e).__name__}: {e}") from e
-
 
 
 def _safe_file(path: Path) -> Optional[FileResponse]:
@@ -199,11 +269,9 @@ def serve_frontend(full_path: str):
     """Serve static assets or SPA index. Registered last so API routes win."""
     if not FRONTEND_DIST.exists():
         raise HTTPException(status_code=404, detail="Frontend missing")
-    # Prefer exact file (e.g. assets/index-xxxxx.js)
     file_resp = _safe_file(FRONTEND_DIST / full_path)
     if file_resp is not None:
         return file_resp
-    # SPA fallback for client routes
     index = FRONTEND_DIST / "index.html"
     if index.is_file():
         return FileResponse(index)
