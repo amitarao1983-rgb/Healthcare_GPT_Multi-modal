@@ -44,27 +44,47 @@
 .btn-evaluate-inline {
   padding: 0.5rem 0.9rem;
   border-radius: var(--radius);
-  border: 1px solid #f59e0b;
-  background: rgba(245, 158, 11, 0.18);
-  color: #fbbf24;
+  border: 2px solid #f59e0b;
+  background: #f59e0b;
+  color: #111827;
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
 .btn-evaluate:hover,
 .btn-evaluate-inline:hover {
-  background: rgba(245, 158, 11, 0.3);
+  background: #fbbf24;
 }
 
 .btn-rate {
   margin-top: 0.65rem;
-  padding: 0.4rem 0.75rem;
+  padding: 0.45rem 0.8rem;
   border-radius: 8px;
-  border: 1px solid #f59e0b;
-  background: rgba(245, 158, 11, 0.12);
-  color: #fbbf24;
+  border: 2px solid #f59e0b;
+  background: #f59e0b;
+  color: #111827;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 800;
+}
+
+.fab-evaluate {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  padding: 0.85rem 1.1rem;
+  border-radius: 999px;
+  border: none;
+  background: #f59e0b;
+  color: #111827;
+  font-weight: 800;
+  font-size: 0.9rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.fab-evaluate:hover {
+  background: #fbbf24;
 }
 
 .btn-text {

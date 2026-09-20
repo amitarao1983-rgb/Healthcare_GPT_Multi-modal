@@ -208,10 +208,10 @@ function App() {
         <p className="tagline">Medicine · Clinical research · Healthcare management · Medicolegal · Nursing</p>
         <div className="header-actions">
           <button type="button" className="btn-evaluate" onClick={() => setShowEval(true)} title="Evaluate GenAI answers">
-            ★ Evaluate
+            EVALUATE
           </button>
           <button type="button" className="btn-icon" onClick={() => setShowSettings(!showSettings)} title="Settings">
-            ⚙
+            Settings
           </button>
         </div>
       </header>
@@ -292,7 +292,7 @@ function App() {
               <div className="message-content">{m.content}</div>
               {m.role === 'assistant' && i === messages.length - 1 && (
                 <button type="button" className="btn-rate" onClick={() => setShowEval(true)}>
-                  ★ Rate / evaluate this answer
+                  EVALUATE this answer
                 </button>
               )}
             </div>
@@ -331,7 +331,7 @@ function App() {
               📷 Images
             </label>
             <button type="button" className="upload-btn btn-evaluate-inline" onClick={() => setShowEval(true)}>
-              ★ Evaluate
+              EVALUATE
             </button>
             {voiceSupported && (
               <button
@@ -364,6 +364,15 @@ function App() {
           </div>
         </div>
       </main>
+
+      <button
+        type="button"
+        className="fab-evaluate"
+        onClick={() => setShowEval(true)}
+        title="Open GenAI evaluation panel"
+      >
+        EVALUATE
+      </button>
     </div>
   )
 }
