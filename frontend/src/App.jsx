@@ -206,12 +206,14 @@ function App() {
       <header className="header">
         <h1>Healthcare GPT</h1>
         <p className="tagline">Medicine · Clinical research · Healthcare management · Medicolegal · Nursing</p>
-        <button type="button" className="btn-text" onClick={() => setShowEval(true)} title="Evaluate GenAI answers">
-          Evaluate
-        </button>
-        <button type="button" className="btn-icon" onClick={() => setShowSettings(!showSettings)} title="Settings">
-          ⚙
-        </button>
+        <div className="header-actions">
+          <button type="button" className="btn-evaluate" onClick={() => setShowEval(true)} title="Evaluate GenAI answers">
+            ★ Evaluate
+          </button>
+          <button type="button" className="btn-icon" onClick={() => setShowSettings(!showSettings)} title="Settings">
+            ⚙
+          </button>
+        </div>
       </header>
 
       <EvalPanel
@@ -288,6 +290,11 @@ function App() {
                 </div>
               )}
               <div className="message-content">{m.content}</div>
+              {m.role === 'assistant' && i === messages.length - 1 && (
+                <button type="button" className="btn-rate" onClick={() => setShowEval(true)}>
+                  ★ Rate / evaluate this answer
+                </button>
+              )}
             </div>
           ))}
           {loading && (
@@ -323,6 +330,9 @@ function App() {
               />
               📷 Images
             </label>
+            <button type="button" className="upload-btn btn-evaluate-inline" onClick={() => setShowEval(true)}>
+              ★ Evaluate
+            </button>
             {voiceSupported && (
               <button
                 type="button"
