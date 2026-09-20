@@ -194,6 +194,48 @@ def debug_key():
     return {"configured": bool(key), "length": len(key)}
 
 
+EVALS_PATH = Path(__file__).resolve().parent / "data" / "evals.jsonl"
+
+
+class EvalRecord(BaseModel):
+    id: str
+    timestamp: str
+    domain: str = "Other"
+    has_image: bool = False
+    question: str
+    answer: str
+    scores: dict = Field(default_factory=dict)
+    overall: Optional[float] = None
+    notes: str = ""
+    model: str = "gpt-4o"
+
+
+@app.post("/evals")
+def save_eval(record: EvalRecord):
+    """Append an evaluation case (for freelancer GenAI reliability reviews)."""
+    EVALS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with EVALS_PATH.open("a", encoding="utf-8") as f:
+        f.write(record.model_dump_json() + "\n")
+    return {"status": "saved", "id": record.id}
+
+
+@app.get("/evals")
+def list_evals():
+    if not EVALS_PATH.exists():
+        return []
+    rows = []
+    with EVALS_PATH.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rows.append(EvalRecord.model_validate_json(line).model_dump())
+            except Exception:
+                continue
+    return rows
+
+
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     try:

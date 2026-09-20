@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { getConfig, chat } from './api'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
+import { getConfig, chat, saveEvalRemote } from './api'
+import EvalPanel from './EvalPanel'
+import { loadEvals, saveEvals } from './evaluation'
 import './App.css'
 
 const MAX_IMAGE_EDGE = 1568
@@ -56,9 +58,24 @@ function App() {
   const [voiceSupported, setVoiceSupported] = useState(false)
   const [listening, setListening] = useState(false)
   const [error, setError] = useState(null)
+  const [showEval, setShowEval] = useState(false)
+  const [evals, setEvals] = useState(() => loadEvals())
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
   const fileInputRef = useRef(null)
+
+  const lastPair = useMemo(() => {
+    for (let i = messages.length - 1; i >= 1; i--) {
+      if (messages[i].role === 'assistant' && messages[i - 1]?.role === 'user') {
+        return {
+          question: messages[i - 1].content,
+          answer: messages[i].content,
+          hasImage: Boolean(messages[i - 1].previews?.length),
+        }
+      }
+    }
+    return null
+  }, [messages])
 
   useEffect(() => {
     getConfig()
@@ -189,10 +206,32 @@ function App() {
       <header className="header">
         <h1>Healthcare GPT</h1>
         <p className="tagline">Medicine · Clinical research · Healthcare management · Medicolegal · Nursing</p>
+        <button type="button" className="btn-text" onClick={() => setShowEval(true)} title="Evaluate GenAI answers">
+          Evaluate
+        </button>
         <button type="button" className="btn-icon" onClick={() => setShowSettings(!showSettings)} title="Settings">
           ⚙
         </button>
       </header>
+
+      <EvalPanel
+        open={showEval}
+        onClose={() => setShowEval(false)}
+        lastPair={lastPair}
+        model={config.model}
+        evals={evals}
+        onSave={(item) => {
+          const next = [...evals, item]
+          setEvals(next)
+          saveEvals(next)
+          saveEvalRemote(item).catch(() => {})
+        }}
+        onClear={() => {
+          if (!window.confirm('Clear all saved evaluations on this browser?')) return
+          setEvals([])
+          saveEvals([])
+        }}
+      />
 
       {showSettings && (
         <div className="settings-panel">

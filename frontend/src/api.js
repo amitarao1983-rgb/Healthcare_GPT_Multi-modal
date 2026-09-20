@@ -46,3 +46,22 @@ export async function health() {
   const r = await fetch(`${API_BASE}/health`);
   return r.ok ? r.json() : null;
 }
+
+export async function saveEvalRemote(item) {
+  const res = await fetch(`${API_BASE}/evals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(item),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(formatErrorDetail(err.detail, res.statusText || 'Failed to save eval'));
+  }
+  return res.json();
+}
+
+export async function listEvalsRemote() {
+  const res = await fetch(`${API_BASE}/evals`);
+  if (!res.ok) return [];
+  return res.json();
+}
